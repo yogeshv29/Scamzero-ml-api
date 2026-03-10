@@ -2,11 +2,14 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from transformers import AlbertForSequenceClassification, AlbertTokenizer
 import torch
+import os
 
 app = FastAPI()
 
-MODEL_PATH = "./saved_model"
+# safer path for deployment environments
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "saved_model")
 
+# load tokenizer and model
 tokenizer = AlbertTokenizer.from_pretrained(MODEL_PATH)
 model = AlbertForSequenceClassification.from_pretrained(MODEL_PATH)
 
@@ -14,6 +17,7 @@ model.eval()
 
 class JobInput(BaseModel):
     description: str
+
 
 @app.get("/")
 def read_root():
@@ -25,9 +29,11 @@ def read_root():
         }
     }
 
+
 @app.get("/health")
 def health_check():
     return {"status": "healthy", "model": "albert-base-v2"}
+
 
 @app.post("/predict")
 def predict(data: JobInput):
@@ -53,12 +59,4 @@ def predict(data: JobInput):
         "prediction": prediction,
         "label": "Scam" if prediction == 1 else "Safe",
         "confidence": confidence
-
     }
-
-import os
-import uvicorn
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    uvicorn.run("api:app", host="0.0.0.0", port=port)
